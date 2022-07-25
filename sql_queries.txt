@@ -1,0 +1,43 @@
+1- Mean:  
+
+select sum(sale_amount)*1.0 / count(sale_amount) as mean_sale_amount from orders; 
+
+Median: 
+
+set @row_index := -1;
+
+select sum(subq.sale_amount)*1.0 / count(subq.sale_amount) as median_value
+from (
+    select @row_index:=@row_index + 1 AS row_index, sale_amount
+    from orders
+    order by sale_amount
+  ) as subq
+  where subq.row_index 
+  in (Floor(@row_index / 2) , ceil(@row_index / 2));
+
+
+
+2- select purchases.transaction id, purchases.user_id, purchases.amount, purchases.datetime, 
+count (purchases.transaction_id)  from orders join purchases 
+on orders.user_id = purchases.user_id group by purchases.user_id
+having count(purchases.transaction_id) > 1;    
+
+
+3-  
+
+With inst as (
+Select user_id,
+Country, event_type from events where event_type = "installs" group by user_id, country ), 
+
+Trl as (
+select distinct e.user_id, e.datetime from events e join inst i on 
+e.user_id= i.user_id where event_type="trials"), 
+
+Prsh as(
+Select distinct e.user_id from events e join trl t on e.user_id= t.user_id where e.event_type= "purchases" and datediff(day, e.datetime, t.datetime)>7),
+
+Select country, count(*) from inst as installs union select count(*) from trl as trials union select count(*) from prsh as purchases 
+Union
+select ((select 1.0*count(*) from trials) / (select count(*) from installs) * 100) ) as conversion_rate_to_trial 
+Union
+Select ((select 1.0*count(*) from purchases) / (select count(*) from trials) * 100) ) as conversion_rate_to_purchase;
